@@ -1,9 +1,9 @@
 import { STATION } from '@/station';
 
 const streams = {
-    WindSpeed: '21868479-21864669-1-1-Wind_Speed',
-    GustSpeed: '21868479-21864669-2-1-Gust_Speed',
-    WindDirection: '21868479-21864669-3-1-Wind_Direction',
+    WindSpeed: '21900847-21933816-1-1-Wind_Speed',
+    GustSpeed: '21900847-21933816-2-1-Wind_Gust',
+    WindDirection: '21900847-21933816-3-1-Wind_Direction',
 };
 
 const ApiMethods = {

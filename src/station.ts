@@ -42,7 +42,7 @@ export const STATION: IStation = {
     /** URL of the HOBO station's `WebSocket` endpoint */
     HOBO_WEBSOCKET_URL: 'wss://api-onset-prod.scriptrapps.io//RThGMDEzNDc3NA==',
     /** HOBO station dashboard's `dockey` parameter */
-    HOBO_DASHBOARD_DOCKEY: '518E7EB4CE5AFEEC894D92E671A312D3',
+    HOBO_DASHBOARD_DOCKEY: '26618A8683062AA0A0ACB321042F2A32',
     /** HOBO station dashboard's wind speed unit */
     HOBO_DASHBOARD_UNIT: 'kt',
 };
