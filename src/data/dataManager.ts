@@ -1,146 +1,181 @@
-import { STATION } from '@/station';
+export interface WSDataRequest {
+  id: string;
+  query: QueryRequest;
+}
 
-const streams = {
-    WindSpeed: '21900847-21933816-1-1-Wind_Speed',
-    GustSpeed: '21900847-21933816-2-1-Wind_Gust',
-    WindDirection: '21900847-21933816-3-1-Wind_Direction',
+export interface QueryRequest {
+  limit: number;
+  metrics: Metric[];
+  start_relative: StartRelative;
+}
+
+export interface Metric {
+  aggregators: Aggregator[];
+  name: string;
+  exclude_tags: boolean;
+  group_by: any[];
+  tags: Tags;
+}
+
+export interface Aggregator {
+  name: string;
+  align_start_time: boolean;
+  sampling: Sampling;
+}
+
+export interface Sampling {
+  value: number;
+  unit: string;
+}
+
+export interface Tags {
+  dataChannel: string[];
+}
+
+export interface StartRelative {
+  value: number;
+  unit: string;
+}
+
+export interface WSResponse {
+  queries: QueryResponse[];
+}
+
+export interface QueryResponse {
+  results: Result[];
+  dataChannel: DataChannel;
+}
+
+export interface Result {
+  name: string;
+  values: number[][];
+}
+
+export interface DataChannel {
+  dataType: string;
+  deviceSerialNumber: string;
+  deviceUuid: string;
+  firstMeasurementTime: string;
+  lastMeasurementTime: string;
+  deviceProductCode: string;
+  loggerName: string;
+  sensorSerialNumber: string;
+  sensorLabel: string;
+  sensor_key: number;
+  sensor_keys: number[];
+  sensorProductCode: string;
+  ioTDataMetricName: string;
+  outputMetric: string;
+  metricName: string;
+  metricNameShort: string;
+  metricType: string;
+  metricUnits: string;
+  metricUnitsDisplayPrecision: number;
+  productMeasure: string;
+  sensorErrorDetected: boolean;
+}
+
+function newRequestData() {
+  const req: WSDataRequest = {
+    id: "71408ff1-1fa6-413a-adbd-54d9a92a6a55",
+    query: {
+      limit: 10000,
+      metrics: [
+        {
+          name: "com.onset.sensordata.windspeed_userdefined",
+          exclude_tags: true,
+          group_by: [],
+          tags: {
+            dataChannel: ["77131d4b-20f1-4452-9fdc-07aca288af5b"],
+          },
+          aggregators: [
+            {
+              name: "avg",
+              align_start_time: true,
+              sampling: {
+                value: 3,
+                unit: "seconds",
+              },
+            },
+          ],
+        },
+        {
+          name: "com.onset.sensordata.gustspeed_userdefined",
+          exclude_tags: true,
+          group_by: [],
+          tags: {
+            dataChannel: ["cfd90617-8346-4c3f-be7c-20ed3179424e"],
+          },
+          aggregators: [
+            {
+              name: "avg",
+              align_start_time: true,
+              sampling: {
+                value: 3,
+                unit: "seconds",
+              },
+            },
+          ],
+        },
+        {
+          name: "com.onset.sensordata.winddirection_si",
+          exclude_tags: true,
+          group_by: [],
+          tags: {
+            dataChannel: ["26c08efb-f7e4-444f-8c2e-17ef25606a17"],
+          },
+          aggregators: [
+            {
+              name: "avg",
+              align_start_time: true,
+              sampling: {
+                value: 3,
+                unit: "seconds",
+              },
+            },
+          ],
+        },
+      ],
+      start_relative: {
+        unit: "hours",
+        value: 4,
+      },
+    },
+  };
+  return req;
+}
+
+const apiMethods = {
+  Query: "https://hobolink.licor.cloud/api/dashboard/public/query",
 };
 
-const ApiMethods = {
-    GetUserData: 'app/api/dashboard/GetUserData',
-};
-
-function getTSParams(streams: any, from_date: any, to_date: any) {
-    const body = {
-        dataType: 'raw',
-        streams: streams,
-        dataFormat: 'dygraphs',
-        aggregationRange: 10,
-        display_metric: 'si',
-        fetchPeriod: 'past_day',
-        fetchTimeZone: STATION.TIMEZONE,
-        dockey: STATION.HOBO_DASHBOARD_DOCKEY,
-        from_date,
-        to_date,
-    };
-    return body;
-}
-
-function getLatestParams(stream: any) {
-    const body = {
-        dataType: 'latest',
-        streams: stream,
-        dataFormat: 'live',
-        aggregationRange: 10,
-        display_metric: 'si',
-        fetchPeriod: 'past_day',
-        fetchTimeZone: STATION.TIMEZONE,
-        dockey: STATION.HOBO_DASHBOARD_DOCKEY,
-    };
-    return body;
-}
-
-function requestTSData(
-    ws: WebSocket,
-    id: string,
-    streams: any[],
-    from_date: number,
-    to_date: number
-) {
-    const payload = {
-        method: ApiMethods.GetUserData,
-        params: {
-            body: JSON.stringify(getTSParams(streams, from_date, to_date)),
-        },
-        id: id,
-    };
-
-    if (ws.readyState == ws.OPEN) {
-        console.log('Using WSS conn' + ws);
-        console.log('payload=' + JSON.stringify(payload));
-        ws.send(JSON.stringify(payload));
-    }
-}
-
-function requestLatestData(ws: WebSocket, id: string, streams: any[]) {
-    const payload = {
-        method: ApiMethods.GetUserData,
-        params: {
-            body: JSON.stringify(getLatestParams(streams)),
-        },
-        id: id,
-    };
-
-    if (ws.readyState == ws.OPEN) {
-        console.log('Using WSS conn' + ws);
-        console.log('payload=' + JSON.stringify(payload));
-        ws.send(JSON.stringify(payload));
-    }
-}
-
-export default class DataManager {
-    constructor(
-        private readonly ws: WebSocket,
-        tsdataUpdater: (arg0: any) => void,
-        livedataUpdater: (arg0: any) => void,
-        errorHandler: (arg0: any) => void
-    ) {
-        this.ws = ws;
-        this.ws.onmessage = function (event: { data: string }) {
-            console.log(event);
-            const data = JSON.parse(event.data);
-            console.log('Status=' + data.status);
-            if (
-                data.status == 'success' &&
-                Object.hasOwn(data.result, 'data')
-            ) {
-                // time-series response has data property
-                tsdataUpdater(data.result.data);
-            } else if (
-                data.status == 'success' &&
-                Object.hasOwn(data.result[0], 'value')
-            ) {
-                // a single 'latest' response has value property
-                livedataUpdater(data.result);
-            } else if (data.result == 'connected.') {
-                // Do nothing for connection event for now - but could add handler for presentation layer if needed
-            } else {
-                //TODO: might need more connection management on errors
-                errorHandler(event);
-            }
-        };
-    }
-
-    /**
-     * Sends a request to the websocket to get latest value for
-     * one of the metric streams.
-     * @function RequestTSData
-     * @param {string} id Id is used as reference for the WSS request/response
-     * @param {array} streams Array of data stream ids you want the timeseries data from. Use stream.<metric> constants to identify the streams.
-     * @param {long} from_date The EPOC time for the start of the data range.
-     * @param {long} to_date The EPOC time for the start of the data range.
-     */
-    RequestTSData(
-        id: string,
-        streams: any[],
-        from_date: number,
-        to_date: number
-    ) {
-        return requestTSData(this.ws, id, streams, from_date, to_date);
-    }
-
-    /**
-     * Sends a request to the websocket to get latest value for
-     * one of the metric streams.
-     * @function RequestLatestData
-     * @param id Id is used as reference for the WSS request/response
-     * @param stream Data stream you want the latest value from. Use stream.<metric> constants to identify the stream.
-     */
-    RequestLatestData(id: string, stream: any) {
-        return requestLatestData(this.ws, id, stream);
-    }
-
-    get Streams() {
-        return streams;
-    }
+export function FetchWSData(): Promise<number[][]> {
+  const headers: Headers = new Headers();
+  headers.set("Content-Type", "application/json");
+  headers.set("Accept", "application/json");
+  const request: RequestInfo = new Request(apiMethods.Query, {
+    method: "POST",
+    headers: headers,
+    body: JSON.stringify(newRequestData()),
+  });
+  return fetch(request)
+    .then((res) => res.json())
+    .then((res) => {
+      return res as WSResponse;
+    })
+    .then((wsres) => {
+      console.log(wsres);
+      const windspeed = wsres.queries[0].results[0].values;
+      const windgust = wsres.queries[1].results[0].values;
+      const winddirection = wsres.queries[2].results[0].values;
+      const weatherDataMatrix = windspeed.flatMap((_, i) => [
+        [
+          windspeed[i][0],
+          windspeed[i][1],
+          windgust[i][1],
+          Math.round(winddirection[i][1]),
+        ],
+      ]);
+      return weatherDataMatrix;
+    });
 }
