@@ -87,7 +87,8 @@ const onStationDataRecieved = (
   if (isDocumentVisible) {
     timeout.value = window.setTimeout(() => {
       // const now = Date.now();
-      FetchWSData()
+      const rangeInHours = chartsStore.timeRange/1000/3600
+      FetchWSData(rangeInHours)
         .then((value) => {
           onStationDataRecieved(value, isDocumentVisible, stationData, timeout);
         })
@@ -130,7 +131,8 @@ watch(
     if (isDocumentVisible) {
       // Trigger initial fetch of data when document becomes in focus, which then starts update loop
       console.log("Document in focus - start data collection");
-      FetchWSData()
+      const rangeInHours = chartsStore.timeRange/1000/3600
+      FetchWSData(rangeInHours)
         .then((value) => {
           onStationDataRecieved(value, isDocumentVisible, stationData, timeout);
         })
@@ -153,8 +155,14 @@ chartsStore.$subscribe(() => {
       clearTimeout(timeout.value);
     }
     // const now = Date.now();
-    const response = FetchWSData();
-    console.log(response);
+    const rangeInHours = chartsStore.timeRange/1000/3600
+      FetchWSData(rangeInHours)
+        .then((value) => {
+          onStationDataRecieved(value, true, stationData, timeout);
+        })
+        .catch((error) => {
+          errorHandler(error);
+        });
   }
   prevChartTimeRange.value = chartsStore.timeRange;
 });

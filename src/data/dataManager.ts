@@ -75,7 +75,7 @@ export interface DataChannel {
   sensorErrorDetected: boolean;
 }
 
-function newRequestData() {
+function newRequestData(lastNhours:number=3) {
   const req: WSDataRequest = {
     id: "71408ff1-1fa6-413a-adbd-54d9a92a6a55",
     query: {
@@ -138,7 +138,7 @@ function newRequestData() {
       ],
       start_relative: {
         unit: "hours",
-        value: 4,
+        value: lastNhours,
       },
     },
   };
@@ -149,14 +149,14 @@ const apiMethods = {
   Query: "https://hobolink.licor.cloud/api/dashboard/public/query",
 };
 
-export function FetchWSData(): Promise<number[][]> {
+export function FetchWSData(lastNhours:number=3): Promise<number[][]> {
   const headers: Headers = new Headers();
   headers.set("Content-Type", "application/json");
   headers.set("Accept", "application/json");
   const request: RequestInfo = new Request(apiMethods.Query, {
     method: "POST",
     headers: headers,
-    body: JSON.stringify(newRequestData()),
+    body: JSON.stringify(newRequestData(lastNhours)),
   });
   return fetch(request)
     .then((res) => res.json())
