@@ -1,7 +1,3 @@
-export interface WSDataRequest {
-  id: string;
-  query: QueryRequest;
-}
 
 export interface QueryRequest {
   limit: number;
@@ -76,9 +72,7 @@ export interface DataChannel {
 }
 
 function newRequestData(lastNhours:number=3) {
-  const req: WSDataRequest = {
-    id: "71408ff1-1fa6-413a-adbd-54d9a92a6a55",
-    query: {
+  const req: QueryRequest = {
       limit: 10000,
       metrics: [
         {
@@ -93,7 +87,7 @@ function newRequestData(lastNhours:number=3) {
               name: "avg",
               align_start_time: true,
               sampling: {
-                value: 3,
+                value: 30,
                 unit: "seconds",
               },
             },
@@ -111,7 +105,7 @@ function newRequestData(lastNhours:number=3) {
               name: "avg",
               align_start_time: true,
               sampling: {
-                value: 3,
+                value: 30,
                 unit: "seconds",
               },
             },
@@ -129,7 +123,7 @@ function newRequestData(lastNhours:number=3) {
               name: "avg",
               align_start_time: true,
               sampling: {
-                value: 3,
+                value: 30,
                 unit: "seconds",
               },
             },
@@ -140,23 +134,24 @@ function newRequestData(lastNhours:number=3) {
         unit: "hours",
         value: lastNhours,
       },
-    },
-  };
+    };
   return req;
 }
 
 const apiMethods = {
-  Query: "https://hobolink.licor.cloud/api/dashboard/public/query",
+  Query: "https://www.licor.cloud/api/v2/timeseriesdata",
 };
 
 export function FetchWSData(lastNhours:number=3): Promise<number[][]> {
   const headers: Headers = new Headers();
   headers.set("Content-Type", "application/json");
   headers.set("Accept", "application/json");
+  headers.set("Authorization", "Bearer 68zTnfbIBzqbWLqBSQuprcRj7h3bcoVVw5D39dtiHY9dton6");
   const request: RequestInfo = new Request(apiMethods.Query, {
     method: "POST",
     headers: headers,
     body: JSON.stringify(newRequestData(lastNhours)),
+    cache: "no-cache", // Prevent caching to ensure fresh data
   });
   return fetch(request)
     .then((res) => res.json())
