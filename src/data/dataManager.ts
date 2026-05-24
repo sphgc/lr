@@ -1,176 +1,67 @@
 
-export interface QueryRequest {
-  limit: number;
-  metrics: Metric[];
-  start_relative: StartRelative;
-}
+const LOGGER_ID = "21900847";
+const API_TOKEN = "68zTnfbIBzqbWLqBSQuprcRj7h3bcoVVw5D39dtiHY9dton6";
+const API_BASE = "https://api.licor.cloud/v1/data";
 
-export interface Metric {
-  aggregators: Aggregator[];
-  name: string;
-  exclude_tags: boolean;
-  group_by: any[];
-  tags: Tags;
-}
-
-export interface Aggregator {
-  name: string;
-  align_start_time: boolean;
-  sampling: Sampling;
-}
-
-export interface Sampling {
+interface ApiRecord {
+  logger_sn: string;
+  sensor_sn: string;
+  timestamp: string;
+  data_type: string;
+  data_type_id: string;
   value: number;
   unit: string;
+  sensor_measurement_type: string;
 }
 
-export interface Tags {
-  dataChannel: string[];
+interface ApiResponse {
+  max_results: boolean;
+  message: string;
+  data: ApiRecord[];
 }
 
-export interface StartRelative {
-  value: number;
-  unit: string;
+function formatDateUTC(date: Date): string {
+  return date.toISOString().replace("T", " ").replace(/\.\d{3}Z$/, "");
 }
 
-export interface WSResponse {
-  queries: QueryResponse[];
-}
-
-export interface QueryResponse {
-  results: Result[];
-  dataChannel: DataChannel;
-}
-
-export interface Result {
-  name: string;
-  values: number[][];
-}
-
-export interface DataChannel {
-  dataType: string;
-  deviceSerialNumber: string;
-  deviceUuid: string;
-  firstMeasurementTime: string;
-  lastMeasurementTime: string;
-  deviceProductCode: string;
-  loggerName: string;
-  sensorSerialNumber: string;
-  sensorLabel: string;
-  sensor_key: number;
-  sensor_keys: number[];
-  sensorProductCode: string;
-  ioTDataMetricName: string;
-  outputMetric: string;
-  metricName: string;
-  metricNameShort: string;
-  metricType: string;
-  metricUnits: string;
-  metricUnitsDisplayPrecision: number;
-  productMeasure: string;
-  sensorErrorDetected: boolean;
-}
-
-function newRequestData(lastNhours:number=3) {
-  const req: QueryRequest = {
-      limit: 10000,
-      metrics: [
-        {
-          name: "com.onset.sensordata.windspeed_userdefined",
-          exclude_tags: true,
-          group_by: [],
-          tags: {
-            dataChannel: ["77131d4b-20f1-4452-9fdc-07aca288af5b"],
-          },
-          aggregators: [
-            {
-              name: "avg",
-              align_start_time: true,
-              sampling: {
-                value: 30,
-                unit: "seconds",
-              },
-            },
-          ],
-        },
-        {
-          name: "com.onset.sensordata.gustspeed_userdefined",
-          exclude_tags: true,
-          group_by: [],
-          tags: {
-            dataChannel: ["cfd90617-8346-4c3f-be7c-20ed3179424e"],
-          },
-          aggregators: [
-            {
-              name: "avg",
-              align_start_time: true,
-              sampling: {
-                value: 30,
-                unit: "seconds",
-              },
-            },
-          ],
-        },
-        {
-          name: "com.onset.sensordata.winddirection_si",
-          exclude_tags: true,
-          group_by: [],
-          tags: {
-            dataChannel: ["26c08efb-f7e4-444f-8c2e-17ef25606a17"],
-          },
-          aggregators: [
-            {
-              name: "avg",
-              align_start_time: true,
-              sampling: {
-                value: 30,
-                unit: "seconds",
-              },
-            },
-          ],
-        },
-      ],
-      start_relative: {
-        unit: "hours",
-        value: lastNhours,
-      },
-    };
-  return req;
-}
-
-const apiMethods = {
-  Query: "https://www.licor.cloud/api/v2/timeseriesdata",
-};
-
-export function FetchWSData(lastNhours:number=3): Promise<number[][]> {
-  const headers: Headers = new Headers();
-  headers.set("Content-Type", "application/json");
-  headers.set("Accept", "application/json");
-  headers.set("Authorization", "Bearer 68zTnfbIBzqbWLqBSQuprcRj7h3bcoVVw5D39dtiHY9dton6");
-  const request: RequestInfo = new Request(apiMethods.Query, {
-    method: "POST",
-    headers: headers,
-    body: JSON.stringify(newRequestData(lastNhours)),
-    cache: "no-cache", // Prevent caching to ensure fresh data
+export async function FetchWSData(lastNhours: number = 3): Promise<number[][]> {
+  const now = new Date();
+  const start = new Date(now.getTime() - lastNhours * 3600 * 1000);
+  const params = new URLSearchParams({
+    loggers: LOGGER_ID,
+    start_date_time: formatDateUTC(start),
+    end_date_time: formatDateUTC(now),
   });
-  return fetch(request)
-    .then((res) => res.json())
-    .then((res) => {
-      return res as WSResponse;
-    })
-    .then((wsres) => {
-      console.log(wsres);
-      const windspeed = wsres.queries[0].results[0].values;
-      const windgust = wsres.queries[1].results[0].values;
-      const winddirection = wsres.queries[2].results[0].values;
-      const weatherDataMatrix = windspeed.flatMap((_, i) => [
-        [
-          windspeed[i][0],
-          windspeed[i][1],
-          windgust[i][1],
-          Math.round(winddirection[i][1]),
-        ],
-      ]);
-      return weatherDataMatrix;
-    });
+  const res = await fetch(`${API_BASE}?${params}`, {
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${API_TOKEN}`,
+    },
+    cache: "no-cache",
+  });
+  const json: ApiResponse = await res.json();
+
+  type WindEntry = { speed?: number; gust?: number; direction?: number };
+  const grouped = new Map<string, WindEntry>();
+
+  for (const record of json.data) {
+    const type = record.sensor_measurement_type;
+    if (type !== "Wind Speed" && type !== "Wind Gust" && type !== "Wind Direction") continue;
+
+    if (!grouped.has(record.timestamp)) grouped.set(record.timestamp, {});
+    const entry = grouped.get(record.timestamp)!;
+    if (type === "Wind Speed") entry.speed = record.value;
+    else if (type === "Wind Gust") entry.gust = record.value;
+    else if (type === "Wind Direction") entry.direction = record.value;
+  }
+
+  return [...grouped.entries()]
+    .filter(([, e]) => e.speed !== undefined && e.gust !== undefined && e.direction !== undefined)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([ts, e]) => [
+      new Date(ts.replace(" ", "T")).getTime(),
+      e.speed!,
+      e.gust!,
+      Math.round(e.direction!),
+    ]);
 }
