@@ -36,10 +36,11 @@ enum HOBO_STATION_DATA {
   DIRECTION,
 }
 
+const fetchError = ref<string | null>(null);
+
 function errorHandler(reason: any) {
-  //TODO: display errors
-  console.log("TODO: error hanlding on UI");
   console.log(reason);
+  fetchError.value = "The weather station data provider is currently unavailable. Contact the club committee if this persists.";
 }
 
 const onStationDataRecieved = (
@@ -48,7 +49,7 @@ const onStationDataRecieved = (
   stationData: Ref<StationData[]>,
   timeout: Ref<number | undefined>
 ) => {
-  console.dir(data);
+  fetchError.value = null;
   // Only set new `stationData` value when there is a new data from the server
   if (
     stationData.value.length === 0 ||
@@ -175,7 +176,11 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div v-if="stationData.length === 0">Loading...</div>
+  <div v-if="fetchError && stationData.length === 0" class="error-message">
+    <img src="./assets/SPHGC.png" alt="SPHGC logo" class="error-logo" />
+    <p>{{ fetchError }}</p>
+  </div>
+  <div v-else-if="stationData.length === 0">Loading...</div>
   <template v-else>
     <Latest :latestDataEntry="stationData[stationData.length - 1]" />
     <div ref="chartsWrapperRef">
@@ -188,3 +193,18 @@ onUnmounted(() => {
     </div>
   </template>
 </template>
+
+<style scoped>
+.error-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2rem;
+  gap: 1rem;
+  color: #c0392b;
+  font-weight: bold;
+}
+.error-logo {
+  width: 60px;
+}
+</style>
